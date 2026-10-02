@@ -1,4 +1,5 @@
 ﻿using Findora.Catalog.Core.Queries.GetCatalog;
+using Findora.Catalog.Core.Queries.GetCatalogs;
 using Findora.Catalog.Core.Repository;
 using Findora.Shared.Abstraction.Results;
 
@@ -69,6 +70,9 @@ public sealed class GetCatalogQueryHandlerTests
 
     private sealed class RecordingRepository : ICatalogRepository
     {
+        public Task<CatalogPage> GetPageAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public CatalogDetails? Details { get; init; }
         public Exception? Exception { get; init; }
         public int Calls { get; private set; }

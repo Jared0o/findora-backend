@@ -1,4 +1,5 @@
 ﻿using Findora.Catalog.Core;
+using Findora.Catalog.Api.Endpoints.Documents;
 using Findora.Catalog.Api.Endpoints.Catalogs;
 using Findora.Catalog.Infrastructure;
 using Findora.Shared.Abstraction.Modules;
@@ -32,6 +33,9 @@ public sealed class CatalogModule : IModule
         ArgumentNullException.ThrowIfNull(endpoints);
         CreateCatalogEndpoint.Map(endpoints);
         GetCatalogEndpoint.Map(endpoints);
+        GetCatalogsEndpoint.Map(endpoints);
+        CreateDocumentEndpoint.Map(endpoints);
+        CreateDocumentBatchEndpoint.Map(endpoints);
     }
 
     public Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken = default)

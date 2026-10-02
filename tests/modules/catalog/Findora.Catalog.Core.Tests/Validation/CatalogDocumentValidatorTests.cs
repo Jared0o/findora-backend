@@ -5,7 +5,7 @@ using CatalogModel = Findora.Catalog.Core.Models.Catalog;
 
 namespace Findora.Catalog.Core.Tests.Validation;
 
-public sealed class CatalogProductValidatorTests
+public sealed class CatalogDocumentValidatorTests
 {
     [Theory]
     [InlineData(CatalogFieldType.Int, "0")]
@@ -137,7 +137,7 @@ public sealed class CatalogProductValidatorTests
         var catalog = new CatalogModel(Guid.NewGuid(), "Products");
         using var document = JsonDocument.Parse("{\"unknown\":1}");
 
-        var result = CatalogProductValidator.Validate(document.RootElement, catalog);
+        var result = CatalogDocumentValidator.Validate(document.RootElement, catalog);
 
         AssertError(result, "unknown", "UnknownField");
         Assert.Empty(catalog.Fields);
@@ -190,7 +190,7 @@ public sealed class CatalogProductValidatorTests
     {
         using var document = JsonDocument.Parse("{}");
 
-        Assert.Throws<ArgumentNullException>(() => CatalogProductValidator.Validate(document.RootElement, null!));
+        Assert.Throws<ArgumentNullException>(() => CatalogDocumentValidator.Validate(document.RootElement, null!));
     }
 
     private static CatalogValidationResult Validate(string json, params CatalogFieldDefinition[] definitions)
@@ -202,7 +202,7 @@ public sealed class CatalogProductValidatorTests
         }
 
         using var document = JsonDocument.Parse(json);
-        return CatalogProductValidator.Validate(document.RootElement, catalog);
+        return CatalogDocumentValidator.Validate(document.RootElement, catalog);
     }
 
     private static void AssertError(CatalogValidationResult result, string path, string code)
@@ -214,4 +214,3 @@ public sealed class CatalogProductValidatorTests
         Assert.False(string.IsNullOrWhiteSpace(error.Message));
     }
 }
-

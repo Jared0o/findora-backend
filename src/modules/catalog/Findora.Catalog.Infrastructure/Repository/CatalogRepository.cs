@@ -1,4 +1,5 @@
 ﻿using Findora.Catalog.Core.Repository;
+using Findora.Catalog.Core.Queries.GetCatalogs;
 using Findora.Catalog.Infrastructure.Persistence.Configurations;
 using Npgsql;
 using Findora.Catalog.Core.Queries.GetCatalog;
@@ -58,6 +59,27 @@ public sealed class CatalogRepository : ICatalogRepository
 
     private static Result<Guid> NameAlreadyExists() => Result<Guid>.Failure(
         new Error("Catalog.NameAlreadyExists", "A catalog with this name already exists.", "name"));
+
+    public async Task<CatalogPage> GetPageAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 100);
+        var catalogs = _context.Catalogs.AsNoTracking();
+        var totalCount = await catalogs.CountAsync(cancellationToken);
+        var offset = ((long)page - 1) * pageSize;
+        if (offset >= totalCount)
+        {
+            return new CatalogPage([], page, pageSize, totalCount);
+        }
+
+        var items = await catalogs.OrderByDescending(record => record.CreatedAt)
+            .ThenByDescending(record => record.Id)
+            .Skip((int)offset).Take(pageSize)
+            .Select(record => new CatalogListItem(record.Id, record.Name, record.CreatedAt))
+            .ToListAsync(cancellationToken);
+        return new CatalogPage(items, page, pageSize, totalCount);
+    }
 
     public async Task<CatalogDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {

@@ -25,6 +25,7 @@ public static class Extensions
             postgres => postgres.MigrationsHistoryTable(
                 CatalogDbContext.MigrationsHistoryTable, CatalogDbContext.SchemaName)));
         services.TryAddScoped<ICatalogRepository, CatalogRepository>();
+        services.TryAddScoped<ICatalogDocumentRepository, CatalogDocumentRepository>();
         return services;
     }
 }

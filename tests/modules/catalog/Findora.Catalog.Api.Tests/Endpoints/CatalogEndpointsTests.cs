@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using Findora.Catalog.Core.Queries.GetCatalogs;
 using Findora.Catalog.Core.Queries.GetCatalog;
 using Findora.Catalog.Core.Models;
 using System.Net.Http.Json;
@@ -110,6 +111,12 @@ public sealed class CatalogEndpointsTests
         Assert.True(operation.GetProperty("responses").TryGetProperty("201", out _));
         Assert.True(operation.GetProperty("responses").TryGetProperty("400", out _));
         Assert.True(operation.GetProperty("responses").TryGetProperty("409", out _));
+        var list = paths.GetProperty("/api/catalog/catalogs").GetProperty("get");
+        Assert.Equal("catalog.GetCatalogs", list.GetProperty("operationId").GetString());
+        Assert.True(list.GetProperty("responses").TryGetProperty("200", out _));
+        Assert.True(list.GetProperty("responses").TryGetProperty("400", out _));
+        Assert.Equal(["page", "pageSize"], list.GetProperty("parameters").EnumerateArray()
+            .Select(parameter => parameter.GetProperty("name").GetString()));
         var get = paths.GetProperty("/api/catalog/catalogs/{id}").GetProperty("get");
         Assert.Equal("catalog.GetCatalog", get.GetProperty("operationId").GetString());
         foreach (var status in new[] { "200", "400", "404" })
@@ -156,6 +163,51 @@ public sealed class CatalogEndpointsTests
         Assert.False(fields[3].GetProperty("isRequired").GetBoolean());
     }
 
+    [Theory]
+    [InlineData("", 1, 10)]
+    [InlineData("?page=2", 2, 10)]
+    [InlineData("?pageSize=100", 1, 100)]
+    [InlineData("?page=3&pageSize=1", 3, 1)]
+    public async Task List_UsesDefaultsAndAcceptsValidParameters(string query, int page, int pageSize)
+    {
+        var repository = new RecordingRepository();
+        await using var app = await StartAsync(repository);
+        using var client = app.GetTestClient();
+        var body = await client.GetFromJsonAsync<GetCatalogsResponse>("/api/catalog/catalogs" + query, TestContext.Current.CancellationToken);
+        Assert.NotNull(body);
+        Assert.Equal(page, body.Page);
+        Assert.Equal(pageSize, body.PageSize);
+        Assert.Equal(0, body.TotalCount);
+        Assert.Equal(0, body.TotalPages);
+        Assert.Empty(body.Items);
+        Assert.Equal(1, repository.ListCalls);
+    }
+
+    [Theory]
+    [InlineData("?page=0", "page")]
+    [InlineData("?page=-1", "page")]
+    [InlineData("?page=nope", "page")]
+    [InlineData("?page=2147483648", "page")]
+    [InlineData("?page=", "page")]
+    [InlineData("?pageSize=0", "pageSize")]
+    [InlineData("?pageSize=-1", "pageSize")]
+    [InlineData("?pageSize=101", "pageSize")]
+    [InlineData("?pageSize=1.5", "pageSize")]
+    [InlineData("?pageSize=abc", "pageSize")]
+    public async Task List_InvalidParametersReturnProblemWithoutReading(string query, string path)
+    {
+        var repository = new RecordingRepository();
+        await using var app = await StartAsync(repository);
+        using var client = app.GetTestClient();
+        using var response = await client.GetAsync(new Uri("/api/catalog/catalogs" + query, UriKind.Relative), TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType!.MediaType);
+        var error = Assert.Single(body.GetProperty("errors").EnumerateArray());
+        Assert.Equal(path, error.GetProperty("path").GetString());
+        Assert.Equal(0, repository.ListCalls);
+    }
+
     private static async Task<WebApplication> StartAsync(RecordingRepository repository)
     {
         var builder = WebApplication.CreateBuilder();
@@ -177,6 +229,13 @@ public sealed class CatalogEndpointsTests
 
     private sealed class RecordingRepository : ICatalogRepository
     {
+        public int ListCalls { get; private set; }
+        public Task<CatalogPage> GetPageAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+        {
+            ListCalls++;
+            return Task.FromResult(new CatalogPage([], page, pageSize, 0));
+        }
+
         public CatalogDetails? Details { get; init; }
         public int ReadCalls { get; private set; }
         public Task<CatalogDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)

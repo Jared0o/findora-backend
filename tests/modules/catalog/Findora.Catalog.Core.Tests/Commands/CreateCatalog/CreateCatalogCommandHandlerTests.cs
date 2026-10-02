@@ -178,6 +178,9 @@ public sealed class CreateCatalogCommandHandlerTests
 
     private sealed class RecordingCatalogRepository : ICatalogRepository
     {
+        public Task<Findora.Catalog.Core.Queries.GetCatalogs.CatalogPage> GetPageAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<Findora.Catalog.Core.Queries.GetCatalog.CatalogDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

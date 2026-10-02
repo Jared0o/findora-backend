@@ -1,4 +1,7 @@
 ﻿using System.Reflection;
+using Findora.Catalog.Core.Commands.CreateDocumentBatch;
+using Findora.Catalog.Core.Commands.CreateDocument;
+using Findora.Catalog.Core.Queries.GetCatalogs;
 using Findora.Catalog.Core.Queries.GetCatalog;
 using Findora.Catalog.Core.Commands.CreateCatalog;
 using FluentValidation;
@@ -14,7 +17,10 @@ public static class Extensions
         ArgumentNullException.ThrowIfNull(services);
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly(), ServiceLifetime.Transient);
         services.TryAddScoped<CreateCatalogCommandHandler>();
+        services.TryAddScoped<CreateDocumentCommandHandler>();
+        services.TryAddScoped<CreateDocumentBatchCommandHandler>();
         services.TryAddScoped<GetCatalogQueryHandler>();
+        services.TryAddScoped<GetCatalogsQueryHandler>();
         return services;
     }
 }

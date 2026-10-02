@@ -10,12 +10,14 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
     public const string MigrationsHistoryTable = "__EFMigrationsHistory";
 
     public DbSet<CatalogRecord> Catalogs => Set<CatalogRecord>();
+    public DbSet<DocumentRecord> Documents => Set<DocumentRecord>();
     public DbSet<CatalogFieldRecord> FieldDefinitions => Set<CatalogFieldRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(SchemaName);
         modelBuilder.ApplyConfiguration(new CatalogRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new DocumentRecordConfiguration());
         modelBuilder.ApplyConfiguration(new CatalogFieldRecordConfiguration());
     }
 }

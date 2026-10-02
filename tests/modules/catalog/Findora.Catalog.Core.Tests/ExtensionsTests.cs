@@ -34,6 +34,7 @@ public sealed class ExtensionsTests
         var services = new ServiceCollection();
         services.AddCatalogCore();
         services.AddScoped<ICatalogRepository, RecordingCatalogRepository>();
+        services.AddScoped<ICatalogDocumentRepository, RecordingCatalogRepository>();
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
@@ -60,8 +61,16 @@ public sealed class ExtensionsTests
         Assert.Same(handler, scope.ServiceProvider.GetRequiredService<CreateCatalogCommandHandler>());
     }
 
-    private sealed class RecordingCatalogRepository : ICatalogRepository
+    private sealed class RecordingCatalogRepository : ICatalogRepository, ICatalogDocumentRepository
     {
+        public Task<Result<IReadOnlyList<Guid>>> CreateBatchAsync(Guid catalogId, IReadOnlyList<System.Text.Json.JsonElement> documents, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Result<Guid>> CreateAsync(Guid catalogId, System.Text.Json.JsonElement document, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+        public Task<Findora.Catalog.Core.Queries.GetCatalogs.CatalogPage> GetPageAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<Findora.Catalog.Core.Queries.GetCatalog.CatalogDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

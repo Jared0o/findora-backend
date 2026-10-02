@@ -16,7 +16,25 @@ indeks `ux_catalogs_normalized_name`. Repozytorium sprawdza zajętość nazwy pr
 i obsługuje naruszenie tego konkretnego indeksu przy równoczesnych zapisach,
 zwracając `Catalog.NameAlreadyExists` (HTTP `409`). Pozostałe błędy bazy propagują się.
 Tożsamością katalogu pozostaje jego identyfikator. Nazwy pól są case-sensitive.
-Produkty, ich dane `jsonb` i outbox zostaną dodane w kolejnych migracjach.
+Migracja `AddCatalogDocuments` tworzy `catalog.documents`: `id` (UUID v7),
+`catalog_id` (FK do katalogu), `data` (`jsonb`) i `created_at` (UTC). Indeks
+`ix_documents_catalog_id` wspiera odczyt dokumentów katalogu. CHECK wymaga niepustego
+obiektu JSON; walidacja typów odbywa się w Core. Outbox pozostaje do implementacji.
+
+`CatalogDocumentRepository` zapisuje dokument oraz wykryte definicje pól w jednej
+transakcji ReadCommitted. Najpierw blokuje wiersz katalogu przez `SELECT ... FOR UPDATE`,
+a potem odczytuje aktualne definicje i analizuje dokument. Dzięki temu równoczesne
+zapisy do jednego katalogu widzą zatwierdzone typy pól. Różne katalogi mogą zapisywać
+równolegle. Każda przyszła ścieżka dodawania dokumentów i zmiany schematu, w tym batch,
+musi przestrzegać tej samej blokady. Błąd wycofuje zapis dokumentu i nowych pól.
+Pojedynczy zapis i `CreateBatchAsync` współdzielą implementację transakcji. Batch
+utrzymuje jedną blokadę katalogu, analizuje 1–100 dokumentów, a następnie zapisuje je
+wspólnie z definicjami przez jedno wywołanie `SaveChangesAsync`. Zwracane ID odpowiadają
+kolejności wejściowej. Błąd walidacji lub zapisu wycofuje całą paczkę. Batch nie wymaga
+nowych tabel ani migracji.
+Surowy JSON jest mapowany jako string z typem kolumny `jsonb`; Npgsql nie serializuje
+go ponownie. JSONB normalizuje reprezentację — formatowanie i kolejność kluczy nie
+są zachowywane.
 
 Jeśli istnieją już duplikaty nazw, migracja i start API zatrzymają się. Migracja nie
 usuwa ani nie przemianowuje danych. Przed jej zastosowaniem można wykryć kolizje:
@@ -61,6 +79,12 @@ migracji przerywa start API. Po inicjalizacji katalog można utworzyć przez
 Odczyt `GET /api/catalog/catalogs/{id}` korzysta z `GetByIdAsync`, które projektuje
 dane na model odczytu `CatalogDetails` bez śledzenia encji. Pobiera definicje pól
 wyłącznie wskazanego katalogu i porządkuje je po nazwie porównaniem ordinal.
+
+Lista katalogów korzysta z `GetPageAsync`: zlicza rekordy, a następnie pobiera stronę
+przez `Skip/Take`, projektując tylko ID, nazwę i czas utworzenia bez śledzenia encji.
+Kolejność jest określona przez `created_at DESC, id DESC`. Liczniki i strona pochodzą
+z osobnych zapytań; równoczesne zapisy mogą zmienić wynik pomiędzy nimi oraz przesunąć
+elementy między kolejnymi stronami. Rozmiar strony wynosi domyślnie 10, maksymalnie 100.
 
 ## Kolejne migracje
 

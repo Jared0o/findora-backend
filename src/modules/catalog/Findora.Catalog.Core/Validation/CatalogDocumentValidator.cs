@@ -4,7 +4,7 @@ using Findora.Catalog.Core.Models;
 
 namespace Findora.Catalog.Core.Validation;
 
-public static class CatalogProductValidator
+public static class CatalogDocumentValidator
 {
     public static CatalogValidationResult Validate(JsonElement document, Models.Catalog catalog)
     {
@@ -12,7 +12,7 @@ public static class CatalogProductValidator
         var errors = new List<CatalogValidationError>();
         if (document.ValueKind != JsonValueKind.Object)
         {
-            errors.Add(new("$", "ExpectedObject", "The product document must be a JSON object."));
+            errors.Add(new("$", "ExpectedObject", "The document must be a JSON object."));
             return new CatalogValidationResult(errors);
         }
 
@@ -82,7 +82,7 @@ public static class CatalogProductValidator
         {
             CatalogFieldType.Int => value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out _),
             CatalogFieldType.Decimal => value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out _),
-            CatalogFieldType.String => value.ValueKind == JsonValueKind.String,
+            CatalogFieldType.String => value.ValueKind == JsonValueKind.String && !value.GetString()!.Contains('\0'),
             CatalogFieldType.Bool => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
             _ => false
         };
