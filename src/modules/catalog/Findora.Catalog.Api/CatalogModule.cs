@@ -31,6 +31,7 @@ public sealed class CatalogModule : IModule
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         CreateCatalogEndpoint.Map(endpoints);
+        GetCatalogEndpoint.Map(endpoints);
     }
 
     public Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken = default)

@@ -178,6 +178,9 @@ public sealed class CreateCatalogCommandHandlerTests
 
     private sealed class RecordingCatalogRepository : ICatalogRepository
     {
+        public Task<Findora.Catalog.Core.Queries.GetCatalog.CatalogDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Result<Guid> Result { get; init; } = Result<Guid>.Success(Guid.CreateVersion7());
         public Exception? Exception { get; init; }
         public int Calls { get; private set; }

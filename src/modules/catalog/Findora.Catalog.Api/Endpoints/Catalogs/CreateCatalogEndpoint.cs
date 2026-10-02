@@ -15,23 +15,26 @@ internal static class CreateCatalogEndpoint
         endpoints.MapPost("/catalogs", HandleAsync)
             .WithName("catalog.CreateCatalog")
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create a catalog.")
             .WithDescription("Creates an empty catalog and returns its identifier.");
     }
 
-    private static async Task<Results<Created<CreateCatalogResponse>, ProblemHttpResult>> HandleAsync(
+    private static async Task<Results<CreatedAtRoute<CreateCatalogResponse>, ProblemHttpResult>> HandleAsync(
         CreateCatalogRequest request,
         CreateCatalogCommandHandler handler,
-        HttpContext context,
         CancellationToken cancellationToken)
     {
         var result = await handler.ExecuteAsync(new CreateCatalogCommand(request.Name), cancellationToken);
         if (result.IsFailure)
         {
-            return result.ToValidationProblem();
+            return result.Errors.Any(error => error.Code == "Catalog.NameAlreadyExists")
+                ? TypedResults.Problem(statusCode: StatusCodes.Status409Conflict, title: "Catalog name already exists.",
+                    extensions: new Dictionary<string, object?> { ["errors"] = result.Errors })
+                : result.ToValidationProblem();
         }
 
-        var location = context.Request.PathBase.Add(context.Request.Path).Value!.TrimEnd('/') + "/" + result.Value;
-        return TypedResults.Created(location, new CreateCatalogResponse(result.Value));
+        return TypedResults.CreatedAtRoute(new CreateCatalogResponse(result.Value),
+            GetCatalogEndpoint.RouteName, new { id = result.Value });
     }
 }

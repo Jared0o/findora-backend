@@ -10,6 +10,7 @@ wywołuje `InitializeModulesAsync()`, a moduł katalogu stosuje oczekujące migr
 
 - `GET /api/catalog` — informacja o module: `{ "name": "catalog" }`.
 - `POST /api/catalog/catalogs` — utworzenie pustego katalogu.
+- `GET /api/catalog/catalogs/{id}` — metadane katalogu i definicje pól.
 
 Przykładowe żądanie:
 
@@ -17,9 +18,24 @@ Przykładowe żądanie:
 { "name": "Books" }
 ```
 
+Nazwy katalogów są unikalne w całej bazie, bez rozróżniania wielkości liter
+i spacji na początku oraz końcu. `Books`, `books` i ` Books ` wskazują tę samą
+nazwę. POST zwraca `409 Conflict` (ProblemDetails z tablicą `errors`),
+kod `Catalog.NameAlreadyExists` i ścieżkę `name`, gdy nazwa jest już zajęta.
+Oryginalna wielkość liter pozostaje zachowana w zapisanej nazwie.
+
 Sukces zwraca `201 Created`, `{ "id": "..." }` i nagłówek `Location` z adresem
-`/api/catalog/catalogs/{id}`. Endpoint odczytu katalogu pod tym adresem jest kolejnym
-etapem implementacji.
+`/api/catalog/catalogs/{id}`, generowanym z nazwanej trasy `catalog.GetCatalog`.
+Adres uwzględnia również `PathBase` aplikacji.
+
+Odczyt zwraca `200 OK` z polami `id`, `name`, `createdAt` (UTC) oraz `fields`.
+Definicje pól zawierają `name`, `type` (`int`, `decimal`, `string`, `bool`),
+`isArray` i `isRequired`. Pola są sortowane po nazwie porównaniem ordinal;
+nowo utworzony katalog ma `fields: []`.
+
+Błędny format identyfikatora lub pusty GUID zwraca `400` z kodem `Catalog.InvalidId`.
+Nieistniejący katalog zwraca `404` z kodem `Catalog.NotFound`. Obie odpowiedzi
+używają ProblemDetails z tablicą `errors`, a ścieżka błędu to `id`.
 
 Walidacja wykorzystuje validator komendy z Core. Nieprawidłowa nazwa zwraca
 `400 Bad Request` w formacie `application/problem+json`, z tablicą `errors`

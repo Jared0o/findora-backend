@@ -10,9 +10,25 @@ Pierwsza migracja tworzy:
 - `catalog.field_definitions`: definicje pól z kluczem `(catalog_id, name)`, typem,
   informacją o tablicy i wymaganej wartości. Klucz obcy wskazuje katalog.
 
-Nazwy katalogów nie mają obecnie ograniczenia unikalności. Tożsamością katalogu
-jest jego identyfikator. Nazwy pól są rozróżniane z uwzględnieniem wielkości liter.
+Nazwy katalogów są globalnie unikalne po normalizacji `lower(btrim(name))` w PostgreSQL.
+Migracja `UniqueCatalogName` dodaje generowaną kolumnę `normalized_name` oraz unikalny
+indeks `ux_catalogs_normalized_name`. Repozytorium sprawdza zajętość nazwy przed zapisem
+i obsługuje naruszenie tego konkretnego indeksu przy równoczesnych zapisach,
+zwracając `Catalog.NameAlreadyExists` (HTTP `409`). Pozostałe błędy bazy propagują się.
+Tożsamością katalogu pozostaje jego identyfikator. Nazwy pól są case-sensitive.
 Produkty, ich dane `jsonb` i outbox zostaną dodane w kolejnych migracjach.
+
+Jeśli istnieją już duplikaty nazw, migracja i start API zatrzymają się. Migracja nie
+usuwa ani nie przemianowuje danych. Przed jej zastosowaniem można wykryć kolizje:
+
+```sql
+SELECT lower(btrim(name)) AS normalized_name, array_agg(id) AS catalog_ids, count(*)
+FROM catalog.catalogs
+GROUP BY lower(btrim(name))
+HAVING count(*) > 1;
+```
+
+Po świadomym nadaniu kolidującym katalogom różnych nazw uruchom API ponownie.
 
 Modele zapisu znajdują się w `Persistence/Entities`. Model domenowy w `Core`
 pozostaje niezależny od EF Core. `CatalogRepository` zapisuje katalog i zwraca
@@ -42,6 +58,9 @@ Infrastructure, stosując oczekujące migracje w schemacie `catalog`. Kolejne st
 z aktualną bazą nie wykonują ponownie zastosowanych migracji. Błąd połączenia lub
 migracji przerywa start API. Po inicjalizacji katalog można utworzyć przez
 `POST /api/catalog/catalogs`.
+Odczyt `GET /api/catalog/catalogs/{id}` korzysta z `GetByIdAsync`, które projektuje
+dane na model odczytu `CatalogDetails` bez śledzenia encji. Pobiera definicje pól
+wyłącznie wskazanego katalogu i porządkuje je po nazwie porównaniem ordinal.
 
 ## Kolejne migracje
 

@@ -62,6 +62,9 @@ public sealed class ExtensionsTests
 
     private sealed class RecordingCatalogRepository : ICatalogRepository
     {
+        public Task<Findora.Catalog.Core.Queries.GetCatalog.CatalogDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public int Calls { get; private set; }
         public string? Name { get; private set; }
 

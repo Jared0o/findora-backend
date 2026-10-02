@@ -1,13 +1,13 @@
 ﻿using System.Net;
+using Findora.Catalog.Core.Queries.GetCatalog;
+using Findora.Catalog.Core.Models;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Findora.Catalog.Api;
 using Findora.Catalog.Api.Contracts;
 using Findora.Catalog.Core.Repository;
 using Findora.Shared.Abstraction.Results;
 using Findora.Shated.Infrastructure.Modules;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,7 +46,7 @@ public sealed class CatalogEndpointsTests
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal(repository.Id, body!.Id);
-        Assert.Equal("/api/catalog/catalogs/" + repository.Id, response.Headers.Location!.OriginalString);
+        Assert.EndsWith("/api/catalog/catalogs/" + repository.Id, response.Headers.Location!.OriginalString, StringComparison.Ordinal);
         Assert.Equal("Books", repository.Name);
         Assert.Equal(1, repository.Calls);
     }
@@ -109,6 +109,51 @@ public sealed class CatalogEndpointsTests
         Assert.Equal("catalog", Assert.Single(operation.GetProperty("tags").EnumerateArray()).GetString());
         Assert.True(operation.GetProperty("responses").TryGetProperty("201", out _));
         Assert.True(operation.GetProperty("responses").TryGetProperty("400", out _));
+        Assert.True(operation.GetProperty("responses").TryGetProperty("409", out _));
+        var get = paths.GetProperty("/api/catalog/catalogs/{id}").GetProperty("get");
+        Assert.Equal("catalog.GetCatalog", get.GetProperty("operationId").GetString());
+        foreach (var status in new[] { "200", "400", "404" })
+            Assert.True(get.GetProperty("responses").TryGetProperty(status, out _));
+    }
+
+    [Theory]
+    [InlineData("invalid", 400, "Catalog.InvalidId")]
+    [InlineData("00000000-0000-0000-0000-000000000000", 400, "Catalog.InvalidId")]
+    [InlineData("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", 404, "Catalog.NotFound")]
+    public async Task Get_FailureReturnsProblemDetails(string id, int status, string code)
+    {
+        var repository = new RecordingRepository();
+        await using var app = await StartAsync(repository);
+        using var client = app.GetTestClient();
+        using var response = await client.GetAsync(new Uri("/api/catalog/catalogs/" + id, UriKind.Relative), TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+        Assert.Equal(status, (int)response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(status, body.GetProperty("status").GetInt32());
+        var error = Assert.Single(body.GetProperty("errors").EnumerateArray());
+        Assert.Equal(code, error.GetProperty("code").GetString());
+        Assert.Equal("id", error.GetProperty("path").GetString());
+        Assert.Equal(status == 400 ? 0 : 1, repository.ReadCalls);
+    }
+
+    [Fact]
+    public async Task Get_ReturnsMetadataAndStringFieldTypes()
+    {
+        var details = new CatalogDetails(Guid.CreateVersion7(), "Books", DateTimeOffset.UtcNow,
+            [new("active", CatalogFieldType.Bool, false, true), new("count", CatalogFieldType.Int, false, false),
+             new("price", CatalogFieldType.Decimal, false, true), new("tags", CatalogFieldType.String, true, false)]);
+        var repository = new RecordingRepository { Details = details };
+        await using var app = await StartAsync(repository);
+        using var client = app.GetTestClient();
+        var body = await client.GetFromJsonAsync<JsonElement>("/api/catalog/catalogs/" + details.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(details.Id, body.GetProperty("id").GetGuid());
+        Assert.Equal(details.Name, body.GetProperty("name").GetString());
+        Assert.Equal(details.CreatedAt, body.GetProperty("createdAt").GetDateTimeOffset());
+        var fields = body.GetProperty("fields").EnumerateArray().ToArray();
+        Assert.Equal(["bool", "int", "decimal", "string"], fields.Select(field => field.GetProperty("type").GetString()));
+        Assert.Equal("tags", fields[3].GetProperty("name").GetString());
+        Assert.True(fields[3].GetProperty("isArray").GetBoolean());
+        Assert.False(fields[3].GetProperty("isRequired").GetBoolean());
     }
 
     private static async Task<WebApplication> StartAsync(RecordingRepository repository)
@@ -132,6 +177,14 @@ public sealed class CatalogEndpointsTests
 
     private sealed class RecordingRepository : ICatalogRepository
     {
+        public CatalogDetails? Details { get; init; }
+        public int ReadCalls { get; private set; }
+        public Task<CatalogDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            ReadCalls++;
+            return Task.FromResult(Details?.Id == id ? Details : null);
+        }
+
         public Guid Id { get; } = Guid.CreateVersion7();
         public int Calls { get; private set; }
         public string? Name { get; private set; }
