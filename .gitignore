@@ -1,0 +1,41 @@
+# .NET build output
+**/bin/
+**/obj/
+artifacts/
+
+# Rider, IntelliJ and Visual Studio local settings
+.idea/
+.vs/
+*.user
+*.suo
+*.sln.docstates
+*.DotSettings.user
+
+# Test results and coverage
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+coverage.cobertura.xml
+coverage.opencover.xml
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+appsettings.Local.json
+appsettings.*.Local.json
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Keep the SDK version configuration in source control
+!global.json
