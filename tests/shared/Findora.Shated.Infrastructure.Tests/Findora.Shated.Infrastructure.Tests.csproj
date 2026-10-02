@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.mtp-v2" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <Using Include="Xunit" />
+    <ProjectReference Include="../../../src/shared/Findora.Shared.Infrastructure/Findora.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

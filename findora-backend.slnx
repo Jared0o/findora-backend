@@ -9,5 +9,19 @@
     <Project Path="src/modules/catalog/Findora.Catalog.Core/Findora.Catalog.Core.csproj" />
     <Project Path="src/modules/catalog/Findora.Catalog.Infrastructure/Findora.Catalog.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/src/shared/" />
+  <Folder Name="/src/shared/">
+    <Project Path="src/shared/Findora.Shared.Abstraction/Findora.Shared.Abstraction.csproj" />
+    <Project Path="src/shared/Findora.Shared.Infrastructure/Findora.Shared.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/shared/">
+    <Project Path="tests/shared/Findora.Shared.Abstraction.Tests/Findora.Shared.Abstraction.Tests.csproj" />
+    <Project Path="tests/shared/Findora.Shated.Infrastructure.Tests/Findora.Shated.Infrastructure.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/modules/" />
+  <Folder Name="/tests/modules/catalog/">
+    <Project Path="tests/modules/catalog/Findora.Catalog.Core.Tests/Findora.Catalog.Core.Tests.csproj" />
+    <Project Path="tests/modules/catalog/Findora.Catalog.Api.Tests/Findora.Catalog.Api.Tests.csproj" />
+    <Project Path="tests/modules/catalog/Findora.Catalog.Infrastructure.Tests/Findora.Catalog.Infrastructure.Tests.csproj" />
+  </Folder>
 </Solution>

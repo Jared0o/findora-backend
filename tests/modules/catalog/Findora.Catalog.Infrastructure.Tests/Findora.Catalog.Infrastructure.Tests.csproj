@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.mtp-v2" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <Using Include="Xunit" />
+    <ProjectReference Include="../../../../src/modules/catalog/Findora.Catalog.Infrastructure/Findora.Catalog.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

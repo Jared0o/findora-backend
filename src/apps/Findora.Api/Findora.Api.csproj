@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <ProjectReference Include="../../modules/catalog/Findora.Catalog.Api/Findora.Catalog.Api.csproj" />
+    <ProjectReference Include="..\..\shared\Findora.Shared.Infrastructure\Findora.Shared.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
