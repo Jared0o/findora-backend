@@ -56,6 +56,39 @@ hosta z odpowiedzią `500` w formacie ProblemDetails.
 Kontrakty HTTP znajdują się w `Contracts`, a endpointy w `Endpoints/Catalogs` i `Endpoints/Documents`.
 Logika biznesowa i dostęp do bazy pozostają w Core i Infrastructure.
 
+## Odczyt dokumentu
+
+`GET /api/catalog/catalogs/{catalogId}/documents/{documentId}` zwraca `200 OK`
+z polami `id`, `catalogId`, `createdAt` (UTC) oraz `data` jako obiekt JSON.
+Zwracane są zapisane dane bez ponownej walidacji schematu. JSONB nie zachowuje
+formatowania ani kolejności kluczy dokumentu.
+
+Niepoprawny format lub pusty GUID zwraca `400 ProblemDetails` z tablicą `errors`:
+`Catalog.InvalidId` ze ścieżką `catalogId` lub `Document.InvalidId` ze ścieżką
+`documentId`. Błędy obu parametrów są zbierane w jednej odpowiedzi.
+Brak katalogu, brak dokumentu lub dokument należący do innego katalogu zwraca
+jednakowe `404 ProblemDetails` z kodem `Document.NotFound` i ścieżką `documentId`.
+
+## Lista dokumentów
+
+`GET /api/catalog/catalogs/{catalogId}/documents?page=1&pageSize=10` zwraca `200 OK`
+z `items`, `page`, `pageSize`, `totalCount` i `totalPages`. Elementy zawierają pełne
+dokumenty: `id`, `catalogId`, `createdAt` (UTC) i `data` jako obiekt JSON.
+Sortowanie: `createdAt` malejąco, następnie `id` malejąco.
+
+Domyślnie `page=1` i `pageSize=10`. Strona musi być co najmniej 1, rozmiar strony
+mieści się w zakresie 1–100. Pusty katalog ma `items: []` i oba liczniki równe 0.
+Strona poza zakresem zwraca pustą listę z aktualnymi licznikami i żądanymi parametrami.
+
+Nieistniejący katalog zwraca `404 ProblemDetails`, kod `Catalog.NotFound`, ścieżka
+`catalogId`. Błędny lub pusty GUID zwraca `400` z `Catalog.InvalidId`. Błędny format
+lub zakres stronicowania zwraca `400` z `Document.InvalidPage` / `Document.InvalidPageSize`
+i ścieżkami `page` / `pageSize`. Odpowiedzi błędów zawierają tablicę `errors`.
+Nazwa trasy w OpenAPI: `catalog.GetDocuments`.
+
+Liczenie i pobieranie strony to osobne zapytania; równoczesne zapisy mogą zmienić
+liczniki i przesunąć zawartość stron. Odczyt nie blokuje katalogu.
+
 ## Dodawanie dokumentu
 
 `POST /api/catalog/catalogs/{catalogId}/documents` przyjmuje bezpośrednio dokument JSON:
@@ -69,8 +102,8 @@ Logika biznesowa i dostęp do bazy pozostają w Core i Infrastructure.
 }
 ```
 
-Sukces zwraca `201` z `{ "id": "..." }`. Endpoint odczytu dokumentu nie jest
-jeszcze zaimplementowany, dlatego odpowiedź nie zawiera `Location`.
+Sukces zwraca `201` z `{ "id": "..." }` i nagłówkiem `Location`, generowanym
+z nazwanej trasy `catalog.GetDocument` z uwzględnieniem `PathBase` aplikacji.
 Niepoprawny dokument lub ID zwraca `400 ProblemDetails` z tablicą błędów `errors`;
 brak katalogu zwraca `404` z kodem `Catalog.NotFound`.
 

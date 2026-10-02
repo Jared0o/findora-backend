@@ -142,6 +142,59 @@ public sealed class CatalogDocumentRepositoryTests(PostgresFixture database)
         Assert.Equal("Catalog.NotFound", Assert.Single(result.Errors).Code);
     }
 
+    [Fact]
+    public async Task GetById_ReturnsPersistedMetadataAndIndependentJsonWithoutTracking()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var catalogId = await CreateCatalogAsync();
+        var documentId = Guid.CreateVersion7();
+        var createdAt = new DateTimeOffset(2026, 10, 2, 10, 30, 0, TimeSpan.Zero);
+        await using (var writer = database.CreateContext())
+        {
+            writer.Documents.Add(new DocumentRecord
+            {
+                Id = documentId, CatalogId = catalogId, CreatedAt = createdAt,
+                Data = "{\"title\":\"Book\",\"price\":12.5,\"count\":2,\"active\":true,\"tags\":[\"new\"],\"empty\":[]}"
+            });
+            await writer.SaveChangesAsync(token);
+        }
+
+        await using var reader = database.CreateContext();
+        var result = await new CatalogDocumentRepository(reader).GetByIdAsync(catalogId, documentId, token);
+        Assert.NotNull(result);
+        Assert.Equal(documentId, result.Id);
+        Assert.Equal(catalogId, result.CatalogId);
+        Assert.Equal(createdAt, result.CreatedAt);
+        Assert.Equal(TimeSpan.Zero, result.CreatedAt.Offset);
+        Assert.Equal(JsonValueKind.Object, result.Data.ValueKind);
+        Assert.Equal("Book", result.Data.GetProperty("title").GetString());
+        Assert.Equal(12.5m, result.Data.GetProperty("price").GetDecimal());
+        Assert.Equal(2, result.Data.GetProperty("count").GetInt32());
+        Assert.True(result.Data.GetProperty("active").GetBoolean());
+        Assert.Equal("new", result.Data.GetProperty("tags")[0].GetString());
+        Assert.Empty(result.Data.GetProperty("empty").EnumerateArray());
+        Assert.Empty(reader.ChangeTracker.Entries());
+    }
+
+    [Fact]
+    public async Task GetById_RequiresBothCatalogAndDocumentToMatch()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var catalogId = await CreateCatalogAsync();
+        var otherCatalogId = await CreateCatalogAsync();
+        await using var context = database.CreateContext();
+        var repository = new CatalogDocumentRepository(context);
+        using var data = JsonDocument.Parse("{\"title\":\"Book\"}");
+        var created = await repository.CreateAsync(catalogId, data.RootElement, token);
+        Assert.True(created.IsSuccess);
+
+        Assert.Null(await repository.GetByIdAsync(otherCatalogId, created.Value, token));
+        Assert.Null(await repository.GetByIdAsync(Guid.NewGuid(), created.Value, token));
+        Assert.Null(await repository.GetByIdAsync(catalogId, Guid.NewGuid(), token));
+        Assert.NotNull(await repository.GetByIdAsync(catalogId, created.Value, token));
+        Assert.Empty(context.ChangeTracker.Entries());
+    }
+
     private async Task<Guid> CreateCatalogAsync()
     {
         await using var context = database.CreateContext();

@@ -3,6 +3,8 @@ using Findora.Catalog.Core.Commands.CreateDocumentBatch;
 using Findora.Catalog.Core.Commands.CreateDocument;
 using Findora.Catalog.Core.Queries.GetCatalogs;
 using Findora.Catalog.Core.Queries.GetCatalog;
+using Findora.Catalog.Core.Queries.GetDocument;
+using Findora.Catalog.Core.Queries.GetDocuments;
 using Findora.Catalog.Core.Commands.CreateCatalog;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +22,8 @@ public static class Extensions
         services.TryAddScoped<CreateDocumentCommandHandler>();
         services.TryAddScoped<CreateDocumentBatchCommandHandler>();
         services.TryAddScoped<GetCatalogQueryHandler>();
+        services.TryAddScoped<GetDocumentQueryHandler>();
+        services.TryAddScoped<GetDocumentsQueryHandler>();
         services.TryAddScoped<GetCatalogsQueryHandler>();
         return services;
     }

@@ -36,6 +36,22 @@ Surowy JSON jest mapowany jako string z typem kolumny `jsonb`; Npgsql nie serial
 go ponownie. JSONB normalizuje reprezentację — formatowanie i kolejność kluczy nie
 są zachowywane.
 
+Odczyt dokumentu przez `CatalogDocumentRepository.GetByIdAsync` filtruje jednocześnie
+po `catalog_id` i `id` w jednym zapytaniu bez śledzenia encji i bez blokady katalogu.
+Projektuje wyłącznie metadane i dane dokumentu, a zapisany JSON parsuje do
+niezależnego `JsonElement` (`Clone` przed zwolnieniem `JsonDocument`). Brak pasującego
+wiersza zwraca `null`; handler mapuje go na `Document.NotFound` niezależnie od tego,
+czy brakuje katalogu, dokumentu, czy dokument należy do innego katalogu.
+
+`CatalogDocumentRepository.GetPageAsync` sprawdza istnienie katalogu przez `AnyAsync`
+(brak zwraca `null`), następnie wykonuje `Count` oraz `Skip/Take` wyłącznie dla dokumentów
+tego katalogu. Sortuje po `created_at DESC, id DESC`, bez śledzenia encji i blokady katalogu.
+Pobiera pełne dokumenty, parsując JSON dopiero po materializacji strony i klonując każdy
+`JsonElement`. Offset jest liczony jako `long`; strona poza zakresem zwraca pustą listę
+przed rzutowaniem offsetu na `int`. Istniejący pusty katalog ma oba liczniki równe 0.
+Zapytania nie mają wspólnego snapshotu, więc równoczesne zapisy mogą zmienić liczniki
+i zawartość stron. Wykorzystywany jest istniejący indeks `ix_documents_catalog_id`.
+
 Jeśli istnieją już duplikaty nazw, migracja i start API zatrzymają się. Migracja nie
 usuwa ani nie przemianowuje danych. Przed jej zastosowaniem można wykryć kolizje:
 

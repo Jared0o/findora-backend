@@ -44,9 +44,13 @@ public sealed class CreateDocumentEndpointTests
         using var payload = new StringContent("{\"title\":\"News\",\"score\":10.0,\"tags\":[\"world\"]}", Encoding.UTF8, "application/json");
         using var created = await client.PostAsync(route, payload, token);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        Assert.Null(created.Headers.Location);
+        Assert.NotNull(created.Headers.Location);
         var document = await created.Content.ReadFromJsonAsync<CreateDocumentResponse>(token);
         Assert.Equal(7, document!.Id.Version);
+        Assert.EndsWith(route + "/" + document.Id, created.Headers.Location.OriginalString, StringComparison.Ordinal);
+        var fetched = await client.GetFromJsonAsync<GetDocumentResponse>(created.Headers.Location, token);
+        Assert.Equal(document.Id, fetched!.Id);
+        Assert.Equal(catalog.Id, fetched.CatalogId);
         var details = await client.GetFromJsonAsync<GetCatalogResponse>("/api/catalog/catalogs/" + catalog.Id, token);
         Assert.Equal(["score", "tags", "title"], details!.Fields.Select(field => field.Name));
         Assert.Equal("decimal", details.Fields[0].Type);

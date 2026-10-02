@@ -51,6 +51,12 @@ public sealed class CreateDocumentCommandHandlerTests
 
     private sealed class RecordingRepository : ICatalogDocumentRepository
     {
+        public Task<Findora.Catalog.Core.Queries.GetDocuments.DocumentPage?> GetPageAsync(Guid catalogId, int page, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Findora.Catalog.Core.Queries.GetDocument.DocumentDetails?> GetByIdAsync(Guid catalogId, Guid documentId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<Result<IReadOnlyList<Guid>>> CreateBatchAsync(Guid catalogId, IReadOnlyList<System.Text.Json.JsonElement> documents, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

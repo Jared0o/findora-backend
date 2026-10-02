@@ -24,7 +24,7 @@ internal static class CreateDocumentEndpoint
                 "The document and discovered field definitions are saved atomically.");
     }
 
-    private static async Task<Results<Created<CreateDocumentResponse>, ProblemHttpResult>> HandleAsync(
+    private static async Task<Results<CreatedAtRoute<CreateDocumentResponse>, ProblemHttpResult>> HandleAsync(
         string catalogId, [FromBody] JsonElement document, CreateDocumentCommandHandler handler, CancellationToken cancellationToken)
     {
         var result = await handler.ExecuteAsync(new CreateDocumentCommand(catalogId, document), cancellationToken);
@@ -33,6 +33,7 @@ internal static class CreateDocumentEndpoint
                 ? TypedResults.Problem(statusCode: StatusCodes.Status404NotFound, title: "Catalog not found.",
                     extensions: new Dictionary<string, object?> { ["errors"] = result.Errors })
                 : result.ToValidationProblem();
-        return TypedResults.Created((string?)null, new CreateDocumentResponse(result.Value));
+        return TypedResults.CreatedAtRoute(new CreateDocumentResponse(result.Value),
+            GetDocumentEndpoint.RouteName, new { catalogId = Guid.Parse(catalogId), documentId = result.Value });
     }
 }

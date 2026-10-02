@@ -1,5 +1,7 @@
 ﻿using Findora.Catalog.Core.Commands.CreateCatalog;
 using Findora.Catalog.Core.Repository;
+using Findora.Catalog.Core.Queries.GetDocument;
+using Findora.Catalog.Core.Queries.GetDocuments;
 using Findora.Shared.Abstraction.Results;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,6 +43,10 @@ public sealed class ExtensionsTests
             ValidateScopes = true
         });
         using var scope = provider.CreateScope();
+        var documentHandler = scope.ServiceProvider.GetRequiredService<GetDocumentQueryHandler>();
+        Assert.Same(documentHandler, scope.ServiceProvider.GetRequiredService<GetDocumentQueryHandler>());
+        var listHandler = scope.ServiceProvider.GetRequiredService<GetDocumentsQueryHandler>();
+        Assert.Same(listHandler, scope.ServiceProvider.GetRequiredService<GetDocumentsQueryHandler>());
         var handler = scope.ServiceProvider.GetRequiredService<CreateCatalogCommandHandler>();
         var repository = Assert.IsType<RecordingCatalogRepository>(
             scope.ServiceProvider.GetRequiredService<ICatalogRepository>());
@@ -63,6 +69,12 @@ public sealed class ExtensionsTests
 
     private sealed class RecordingCatalogRepository : ICatalogRepository, ICatalogDocumentRepository
     {
+        public Task<Findora.Catalog.Core.Queries.GetDocuments.DocumentPage?> GetPageAsync(Guid catalogId, int page, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Findora.Catalog.Core.Queries.GetDocument.DocumentDetails?> GetByIdAsync(Guid catalogId, Guid documentId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<Result<IReadOnlyList<Guid>>> CreateBatchAsync(Guid catalogId, IReadOnlyList<System.Text.Json.JsonElement> documents, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

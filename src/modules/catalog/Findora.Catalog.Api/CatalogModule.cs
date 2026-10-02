@@ -35,6 +35,8 @@ public sealed class CatalogModule : IModule
         GetCatalogEndpoint.Map(endpoints);
         GetCatalogsEndpoint.Map(endpoints);
         CreateDocumentEndpoint.Map(endpoints);
+        GetDocumentEndpoint.Map(endpoints);
+        GetDocumentsEndpoint.Map(endpoints);
         CreateDocumentBatchEndpoint.Map(endpoints);
     }
 

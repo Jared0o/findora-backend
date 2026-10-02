@@ -4,8 +4,8 @@
 
 Findora is a modular monolith built with C# / .NET 10, Minimal APIs and PostgreSQL.
 The first module is `catalog`. Each catalog can define a different set of fields.
-Product data will eventually be stored as `jsonb` and validated against its catalog's
-field definitions. Product persistence using `jsonb` is not implemented yet.
+Documents are stored as `jsonb`; new field definitions are inferred from incoming
+JSON and existing definitions are validated. Catalogs are not limited to products.
 
 Communicate with the user in Polish. Use English for code symbols and contracts.
 Prefer simple solutions and existing project mechanisms. Avoid adding large libraries
@@ -51,7 +51,38 @@ when adding references.
   propagate to exception handling; do not convert them into validation errors.
 
 Current routes: `GET /`, `GET /api/catalog`, `POST /api/catalog/catalogs`,
-`GET /api/catalog/catalogs/{id}`.
+`GET /api/catalog/catalogs/{id}`, `GET /api/catalog/catalogs`.
+`POST /api/catalog/catalogs/{catalogId}/documents` accepts one raw JSON object,
+returns 201 with its generated ID and Location from the named `catalog.GetDocument` route, 400 for
+invalid input, or 404 for a missing catalog.
+`GET /api/catalog/catalogs/{catalogId}/documents/{documentId}` returns `id`, `catalogId`,
+`createdAt` (UTC) and `data` as a JSON object. Both IDs must be non-empty GUIDs;
+invalid values return 400 with `Catalog.InvalidId` / `Document.InvalidId` and paths
+`catalogId` / `documentId`. Missing catalogs, missing documents and documents in another
+catalog all return 404 with `Document.NotFound` and path `documentId`. Reads filter by
+both IDs in one untracked query without a catalog lock; models live in `Core/Queries/GetDocument`.
+Single-document Location includes the application's PathBase. Batch has no Location.
+`GET /api/catalog/catalogs/{catalogId}/documents` returns `items` (full documents with
+`id`, `catalogId`, `createdAt` and JSON-object `data`), `page`, `pageSize`, `totalCount`
+and `totalPages`. Defaults are page 1 and pageSize 10; page must be at least 1 and
+pageSize must be 1–100. Sort by createdAt descending, then id descending. Invalid
+parameters return 400 with `Catalog.InvalidId`, `Document.InvalidPage` or
+`Document.InvalidPageSize` and paths `catalogId`, `page` or `pageSize` respectively.
+Missing catalogs return 404 `Catalog.NotFound` at `catalogId`. Empty catalogs return
+200 with zero counts; out-of-range pages return 200 with empty items and actual counts.
+`GetDocuments` queries use an existence check, Count and Skip/Take without tracking or
+locking; concurrent writes may shift pages and counts. No shared snapshot is guaranteed.
+`POST /api/catalog/catalogs/{catalogId}/documents/batch` accepts a JSON array of 1–100
+documents. It returns 201 with `ids` in input order and `createdCount`, without Location.
+The entire batch and inferred fields are atomic. `CatalogDocumentBatchAnalyzer` processes
+documents in input order; each valid document's new definitions apply to later documents.
+Errors use zero-based paths such as `documents[2].score`; failed batches persist nothing.
+The catalog list accepts `page` (default 1, minimum 1) and `pageSize` (default 10, range 1–100).
+It returns `items` (id, name, createdAt only), `page`, `pageSize`, `totalCount`,
+and `totalPages`. Ordering is createdAt descending, then id descending.
+Out-of-range pages return 200 with empty items; invalid parameters return 400 with
+error paths `page` / `pageSize`. Empty databases have zero total pages.
+Pagination uses Count and Skip/Take queries; concurrent writes can shift page contents.
 Creation accepts `{ "name": "Books" }` and returns `201` with an ID and `Location`.
 Catalog names are globally unique, ignoring case and surrounding spaces. Creation
 checks for duplicates in the repository and enforces uniqueness in PostgreSQL via
@@ -78,6 +109,20 @@ In Development, documentation is available at `/scalar` and `/openapi/v1.json`.
 - Migrations run automatically at startup in every environment. PostgreSQL must
   be available, and the application account must have permission to change the schema.
 - Generate new catalog identifiers with `Guid.CreateVersion7()`.
+- Documents also use UUID v7 and UTC timestamps. `catalog.documents` contains
+  `id`, `catalog_id`, `data` (jsonb) and `created_at`, with a foreign key and catalog index.
+- `CatalogDocumentAnalyzer` in Core infers optional fields without mutating the catalog
+  and uses `CatalogDocumentValidator` to validate the complete candidate schema.
+  Empty objects are rejected. New empty arrays cannot infer a type; known array fields
+  accept `[]`. Integer JSON tokens fitting Int32 infer `int`; other supported numbers
+  infer `decimal`. Mixed int/decimal arrays infer `decimal[]`. Existing types stay fixed;
+  decimal fields accept integers. Reject numbers outside Decimal and null characters.
+- `CatalogDocumentRepository` owns the ReadCommitted transaction: lock the catalog row
+  with `SELECT ... FOR UPDATE`, then read current definitions, analyze, and save document
+  and new fields atomically. Keep the lock until commit/rollback. All future ingestion
+  paths must coordinate schema changes with this same catalog lock. Single and batch
+  creation share the repository's transaction implementation and hold one lock per request.
+  Failures must leave no new fields or document. Different catalogs can write concurrently.
 - Field definitions support `int` (Int32), `decimal`, `string`, `bool` and homogeneous
   arrays of these types. Reject nested objects, nested arrays and `null`.
   Optional fields can be omitted. The validator rejects unknown and duplicate fields,

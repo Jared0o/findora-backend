@@ -70,6 +70,12 @@ public sealed class CreateDocumentBatchCommandHandlerTests
         public IReadOnlyList<JsonElement>? Documents { get; private set; }
         public Result<IReadOnlyList<Guid>> Result { get; } = Result<IReadOnlyList<Guid>>.Success([Guid.CreateVersion7(), Guid.CreateVersion7()]);
         public Task<Result<Guid>> CreateAsync(Guid catalogId, JsonElement document, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<Findora.Catalog.Core.Queries.GetDocuments.DocumentPage?> GetPageAsync(Guid catalogId, int page, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Findora.Catalog.Core.Queries.GetDocument.DocumentDetails?> GetByIdAsync(Guid catalogId, Guid documentId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<Result<IReadOnlyList<Guid>>> CreateBatchAsync(Guid catalogId, IReadOnlyList<JsonElement> documents, CancellationToken cancellationToken = default)
         {
             Calls++;

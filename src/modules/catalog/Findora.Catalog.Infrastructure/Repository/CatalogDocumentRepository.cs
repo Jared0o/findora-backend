@@ -1,5 +1,7 @@
 ﻿using System.Data;
 using System.Text.Json;
+using Findora.Catalog.Core.Queries.GetDocument;
+using Findora.Catalog.Core.Queries.GetDocuments;
 using Findora.Catalog.Core.Models;
 using Findora.Catalog.Core.Repository;
 using Findora.Catalog.Core.Validation;
@@ -20,6 +22,44 @@ public sealed class CatalogDocumentRepository : ICatalogDocumentRepository
     {
         ArgumentNullException.ThrowIfNull(context);
         _context = context;
+    }
+
+    public async Task<DocumentPage?> GetPageAsync(Guid catalogId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 100);
+        if (!await _context.Catalogs.AnyAsync(catalog => catalog.Id == catalogId, cancellationToken))
+            return null;
+
+        var documents = _context.Documents.AsNoTracking().Where(document => document.CatalogId == catalogId);
+        var totalCount = await documents.CountAsync(cancellationToken);
+        var offset = ((long)page - 1) * pageSize;
+        if (offset >= totalCount) return new DocumentPage([], page, pageSize, totalCount);
+
+        var records = await documents.OrderByDescending(document => document.CreatedAt)
+            .ThenByDescending(document => document.Id)
+            .Skip((int)offset).Take(pageSize)
+            .Select(document => new { document.Id, document.CatalogId, document.CreatedAt, document.Data })
+            .ToListAsync(cancellationToken);
+        var items = records.Select(record =>
+        {
+            using var data = JsonDocument.Parse(record.Data);
+            return new DocumentDetails(record.Id, record.CatalogId, record.CreatedAt, data.RootElement.Clone());
+        }).ToArray();
+        return new DocumentPage(items, page, pageSize, totalCount);
+    }
+
+    public async Task<DocumentDetails?> GetByIdAsync(Guid catalogId, Guid documentId, CancellationToken cancellationToken = default)
+    {
+        var record = await _context.Documents.AsNoTracking()
+            .Where(document => document.CatalogId == catalogId && document.Id == documentId)
+            .Select(document => new { document.Id, document.CatalogId, document.CreatedAt, document.Data })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (record is null) return null;
+
+        using var data = JsonDocument.Parse(record.Data);
+        return new DocumentDetails(record.Id, record.CatalogId, record.CreatedAt, data.RootElement.Clone());
     }
 
     public async Task<Result<Guid>> CreateAsync(Guid catalogId, JsonElement document, CancellationToken cancellationToken = default)
